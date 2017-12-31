@@ -29,6 +29,7 @@
 				float4 vertex : POSITION;
 				float2 uv : TEXCOORD0;
 				float3 normal : NORMAL;
+				float4 tangent : TANGENT;
 			};
 
 			struct v2f
@@ -51,19 +52,46 @@
 			    return c;
 			}
 			
+			float3 displaceVertex(float3 vert, float3 normal) {
+			    float t = vert.z;
+			    float a = t + (_Time.x * _ScrollSpeed);
+			    float waveVal = wave(a);
+			    return vert + normal * _Amount * waveVal;
+			}
+			
 			v2f vert (appdata v)
 			{ 
 				v2f o;
 			    o.uv = v.uv;
-                float t = v.uv.y; 	
-                float a = t + (_Time.x * _ScrollSpeed);
-			    float waveVal = wave(a);
-			    o.color = waveVal;
-				v.vertex.xyz += v.normal * _Amount * waveVal ;
+                
+                float3 normal = v.normal;
+				float3 tangent = v.tangent.xyz;
+				
+				// Get binormal (sideways) for normal calculation
+    		    float3 binormal = cross(normal, tangent);
+			    
+			    float delta = 0.001; // Offset for fake vertices
+				float3 offsetTan = normalize(tangent) * delta;
+				float3 offsetBin = normalize(binormal) * delta;
+				// Extruded vertex
+				float3 sample = displaceVertex(v.vertex.xyz, normal);
+				
+				// Fake vertices for tangent calculation
+				float3 sampleTan = displaceVertex(v.vertex.xyz + offsetTan, normal);
+				float3 sampleBin = displaceVertex(v.vertex.xyz + offsetBin, normal); 
+				
+				// Calculate new normal from fake vertices
+				float3 bin = sampleBin - sample;
+				float3 tan = sampleTan - sample;
+				float3 newNormal = cross(tan, bin);
+				
+				//displace vertex and normal
+				v.normal = normalize(newNormal);
+				v.vertex.xyz = sample;
 				
 				o.vertex = UnityObjectToClipPos(v.vertex);
 				
-				 // get vertex normal in world space
+				// get vertex normal in world space
                 half3 worldNormal = UnityObjectToWorldNormal(v.normal);
                 // dot product between normal and light direction for
                 // standard diffuse (Lambert) lighting
@@ -80,7 +108,8 @@
 			    float4 gradient = lerp(_SecondColor, _MainColor,  i.uv.y);
 			    gradient *= i.diff;
 			    
-			    return gradient;		    
+			    return gradient;
+			        
 			}
 			ENDCG
 		}
