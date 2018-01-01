@@ -9,6 +9,8 @@
 		_BigWaveScrollSpeed ("Big Wave Scroll Speed", Range(0,10)) = 0.5
 		_Frequency ("Frequency", Range(10,100)) = 30
 		_WaveWidth ("Wave Width", Float) = 1
+		_vertMin ("Vertical Min", float) = -1
+		_vertMax ("Vertical Max", float) = 1
 	}
 		
 		
@@ -25,12 +27,15 @@
 			
 			#include "UnityCG.cginc"
 			#include "UnityLightingCommon.cginc"
+			
+			static const float PI = 3.1415926535897932384626433832795;
 
 			struct appdata
 			{
 				float4 vertex : POSITION;
 				float2 uv : TEXCOORD0;
 				float3 normal : NORMAL;
+				float4 tangent : TANGENT;
 			};
 
 			struct v2f
@@ -48,31 +53,72 @@
 			float _BigWaveScrollSpeed;
 			float _Frequency;
 			float _WaveWidth;
+			float _vertMin;
+			float _vertMax;
+			
 			
 			float singleWave(float c) {
-			    float pi = 3.1415926535897932384626433832795;
-			    c = 1 - (cos(max(min(c, 1), 0) * pi * 2) / 2) - 0.5;
-			    return c;
+			    return 1 - (cos(max(min(c, 1), 0) * PI * 2) / 2) - 0.5;
 			}
 			
 			float waves(float c) {
-			    c = (sin(c * _Frequency) + 1) / 2;
-			    return c;
+			   return (sin(c * _Frequency) + 1) / 2;
 			}
+			
+            float displaceWave(float v) {
+			    float a = v + (_Time.x * _ScrollSpeed);
+			    return waves(a);
+			}
+
+			float displaceSingleWave(float v) {
+			    float t = v; 
+			    float time = 1 - fmod(_Time.y * _BigWaveScrollSpeed, 1);
+			    float scaled = _vertMin + time * (_vertMax - _vertMin);
+                float phase = (((t - scaled) / _WaveWidth) + 1.0) - scaled;
+                return singleWave(phase);
+			}
+
+			float3 displaceVertex(float3 vert, float3 normal) {
+			    float singleWaveVal = displaceWave(vert.z);
+			    float wavesVal = displaceSingleWave(vert.z);
+			    float waveVal = singleWaveVal * wavesVal;
+			    return vert + normal * _Amount * waveVal;
+			}
+
 			
 			v2f vert (appdata v)
 			{ 
 				v2f o;
 			    o.uv = v.uv;
-                float t = v.uv.y; 	
-                float a = t + (_Time.x * _ScrollSpeed);
-                float time = 1 - fmod(_Time.y * _BigWaveScrollSpeed, 1);
-                float phase = (((t - time) / _WaveWidth) + 1.0) - time;
-                float waveVal = singleWave(phase) * waves(a);
-			    o.color = waveVal;
-				v.vertex.xyz += v.normal * _Amount * waveVal ;
-				
-				o.vertex = UnityObjectToClipPos(v.vertex);
+			    o.color = float4(0,0,0,1);
+                
+                float3 normal = v.normal;
+			    float3 tangent = v.tangent.xyz;
+			    
+                // get binormal (sideways) for normal calculation
+                float3 binormal = cross(normal, tangent);
+                
+                float delta = 0.001; // offset for fake vertices
+                float3 offsetTan = normalize(tangent) * delta;
+                float3 offsetBin = normalize(binormal) * delta; 
+                
+                // extruded vertex
+                float3 sample = displaceVertex(v.vertex.xyz, normal);
+                
+                // fake vertices for tangent calculation
+                float3 sampleTan = displaceVertex(v.vertex.xyz + offsetTan, normal);
+                float3 sampleBin = displaceVertex(v.vertex.xyz + offsetBin, normal);
+                
+                // calculate new normal from fake vertices
+                float3 tan = sampleTan - sample;
+                float3 bin = sampleBin - sample;
+                float3 newNormal = cross(tan, bin);
+                
+                // displace vertex and normal
+                v.normal = normalize(newNormal);
+                v.vertex.xyz = sample;          
+              
+                o.vertex = UnityObjectToClipPos(v.vertex);
 				
 				 // get vertex normal in world space
                 half3 worldNormal = UnityObjectToWorldNormal(v.normal);

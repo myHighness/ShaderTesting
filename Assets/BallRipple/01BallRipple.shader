@@ -44,48 +44,53 @@
 			float4 _SecondColor;
 			float _Amount;
 			float _Frequency;
-			float _DisplAmount;
 			float _ScrollSpeed;
 			
+			
 			float wave(float c) {
-			    c = (sin(c * _Frequency) + 1) / 2;
-			    return c;
+			    return (sin(c * _Frequency) + 1) / 2;
+			}
+			
+			float displaceWave(float v) {
+			    float a = v + (_Time.x * _ScrollSpeed);
+			    return wave(a);
 			}
 			
 			float3 displaceVertex(float3 vert, float3 normal) {
-			    float t = vert.z;
-			    float a = t + (_Time.x * _ScrollSpeed);
-			    float waveVal = wave(a);
+			    float waveVal = displaceWave(vert.z);
 			    return vert + normal * _Amount * waveVal;
 			}
 			
+
 			v2f vert (appdata v)
 			{ 
 				v2f o;
 			    o.uv = v.uv;
-                
+			   	o.color = float4(0,0,0,1);
+			   			                    
                 float3 normal = v.normal;
 				float3 tangent = v.tangent.xyz;
 				
-				// Get binormal (sideways) for normal calculation
+				// get binormal (sideways) for normal calculation
     		    float3 binormal = cross(normal, tangent);
 			    
-			    float delta = 0.001; // Offset for fake vertices
+			    float delta = 0.001; // offset for fake vertices
 				float3 offsetTan = normalize(tangent) * delta;
 				float3 offsetBin = normalize(binormal) * delta;
-				// Extruded vertex
+				
+				// extruded vertex
 				float3 sample = displaceVertex(v.vertex.xyz, normal);
 				
-				// Fake vertices for tangent calculation
+				// fake vertices for tangent calculation
 				float3 sampleTan = displaceVertex(v.vertex.xyz + offsetTan, normal);
 				float3 sampleBin = displaceVertex(v.vertex.xyz + offsetBin, normal); 
 				
-				// Calculate new normal from fake vertices
+				// calculate new normal from fake vertices
 				float3 bin = sampleBin - sample;
 				float3 tan = sampleTan - sample;
 				float3 newNormal = cross(tan, bin);
 				
-				//displace vertex and normal
+				// displace vertex and normal
 				v.normal = normalize(newNormal);
 				v.vertex.xyz = sample;
 				
@@ -109,7 +114,6 @@
 			    gradient *= i.diff;
 			    
 			    return gradient;
-			        
 			}
 			ENDCG
 		}

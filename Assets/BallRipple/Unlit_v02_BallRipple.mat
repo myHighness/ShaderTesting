@@ -23,12 +23,14 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Floats:
-    - _Amount: 0.2
+    - _Amount: 0.13
     - _BigWaveScrollSpeed: 0.3
     - _Frequency: 44.4
     - _ScrollSpeed: 0.32
     - _StartPos: -0.41
-    - _WaveWidth: 0.3
+    - _WaveWidth: 1
+    - _vertMax: 1.6
+    - _vertMin: -1.6
     m_Colors:
-    - _MainColor: {r: 0.36705235, g: 0.6838235, b: 0.5527458, a: 1}
-    - _SecondColor: {r: 0.36862746, g: 0.38039216, b: 0.68235296, a: 1}
+    - _MainColor: {r: 0, g: 0.74264705, b: 0.066581964, a: 1}
+    - _SecondColor: {r: 0.11921499, g: 0.14369658, b: 0.722, a: 0.597}
